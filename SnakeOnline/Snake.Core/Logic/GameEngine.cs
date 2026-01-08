@@ -1,4 +1,5 @@
 ﻿using SnakeOnline.Snake.Core.Enum;
+using SnakeOnline.Snake.Core.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,23 +14,26 @@ namespace SnakeOnline.Snake.Core.Logic
         public GameEngine() 
         {
             CurrentState = new GameState();
+            var playerSnake = new Models.Snake(new Position(5, 5), Direction.RIGHT);
+            CurrentState.Snakes.Add(playerSnake);
+            CurrentState.FoodPosition = new Position(10, 10);
         }
 
         public void Update()
         {
             if (!CurrentState.IsGameOver)
             {
-                MoveSnakes();
-                CheckCollisions();
+               // MoveSnakes();
+               // CheckCollisions();
             }
         }
 
         public void ChangeDirection(Direction newDirection)
         {
-            var snake = CurrentState.PlayerSnake;
-            if (IsOpposite(snake.CurrentDirection, newDirection)) return;
+            //var snake = CurrentState.PlayerSnake;
+            //if (IsOpposite(snake.CurrentDirection, newDirection)) return;
 
-            snake.SetDirection(newDirection);
+           // snake.SetDirection(newDirection);
         }
 
         private bool IsOpposite(Direction d1, Direction d2)
