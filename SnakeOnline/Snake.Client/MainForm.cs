@@ -23,17 +23,19 @@ namespace SnakeOnline
             timer.Interval = 100;//ms
             timer.Tick += OnGameTimer_Tick;
             timer.Start();
+
+            _engine.OnTimerIntervalChanged += (newInterval) =>
+            {
+                timer.Interval = newInterval;
+            };
+
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
-            var direction = _inputHandler.GetDirection(e.KeyCode);
-            if (direction.HasValue)
-            {
-                _engine.ChangeDirection(direction.Value);
-            }
-
+            // Odovzdáme klávesu enginu, on už vie, ?o s tým
+            _engine.HandleInput(e.KeyCode);
         }
 
         protected override void OnPaint(PaintEventArgs e)

@@ -10,7 +10,7 @@ namespace SnakeOnline.Snake.Core.Models
     public  class Snake
     {
         private readonly List<Position> _body = new List<Position>();
-
+        private int _score = 0;
         public IReadOnlyList<Position> Body { get { return _body; } }
 
         public Direction CurrentDirection { get; private set; }
@@ -51,11 +51,30 @@ namespace SnakeOnline.Snake.Core.Models
             };
 
             _body.Insert(0, newHead);
+
+            if (_body.Count > 1 ) _body.RemoveAt(_body.Count - 1);
         }
 
         public void Grow()
         {
             _body.Add(new Position(_body.Last().X, _body.Last().Y));
+            _score += 10;
+        }
+        public void ChangeDirection(Direction newDirection)
+        {
+            if (IsOpposite(CurrentDirection, newDirection)) return;
+
+            SetDirection(newDirection);
+        }
+
+        private bool IsOpposite(Direction d1, Direction d2)
+        {
+            if (d1 == Direction.UP && d2 == Direction.DOWN) return true;
+            if (d1 == Direction.DOWN && d2 == Direction.UP) return true;
+            if (d1 == Direction.LEFT && d2 == Direction.RIGHT) return true;
+            if (d1 == Direction.RIGHT && d2 == Direction.LEFT) return true;
+            return false;
+
         }
 
     }
