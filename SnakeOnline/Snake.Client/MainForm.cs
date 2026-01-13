@@ -12,18 +12,26 @@ namespace SnakeOnline
         private readonly InputHandler _inputHandler;
         public MainForm()
         {
+            int tileSize = 16;
             InitializeComponent();
             this.DoubleBuffered = true;
 
             _engine = new GameEngine();
-            _renderer = new GameRenderer();
+            _renderer = new GameRenderer(tileSize);
             _inputHandler = new InputHandler();
 
             var timer = new System.Windows.Forms.Timer();
             timer.Interval = 100;//ms
             timer.Tick += OnGameTimer_Tick;
             timer.Start();
-
+    
+           
+            this.ClientSize = new Size(
+                _engine.CurrentState.GridWidth * tileSize,
+                _engine.CurrentState.GridHeight * tileSize
+            );
+            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
             _engine.OnTimerIntervalChanged += (newInterval) =>
             {
                 timer.Interval = newInterval;

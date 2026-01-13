@@ -7,46 +7,62 @@ namespace SnakeOnline.Rendering
 {
     public class GameRenderer
     {
-        private const int TileSize = 20;
+        private readonly int _tileSize;
+
+        public GameRenderer(int tileSize)
+        {
+            _tileSize = tileSize;
+        }
 
         public void Render(Graphics g, GameState state)
         {
-            // 1. Základná ochrana a vyčistenie plochy
             if (state == null) return;
             g.Clear(Color.Black);
 
-            // 2. Vykreslenie VŠETKÝCH jedál zo zoznamu
-            // Starý blok s FoodPosition sme úplne vymazali
-            foreach (var food in state.ActiveFoods)
+            // 1. VYKRESLENIE MRIEŽKY (Prázdne políčka)
+            // Použijeme pero s nižšou priehľadnosťou (napr. 50), aby čiara nebola príliš rušivá
+            using (Pen gridPen = new Pen(Color.FromArgb(10, Color.White), 1))
             {
-                // Každé jedlo si nesie informáciu o svojej farbe
-                using (Brush foodBrush = new SolidBrush(food.Color))
+                for (int x = 0; x < state.GridWidth; x++)
                 {
-                    g.FillRectangle(foodBrush,
-                        food.Position.X * TileSize,
-                        food.Position.Y * TileSize,
-                        TileSize - 1,
-                        TileSize - 1);
+                    for (int y = 0; y < state.GridHeight; y++)
+                    {
+                        g.DrawRectangle(gridPen,
+                            x * _tileSize,
+                            y * _tileSize,
+                            _tileSize,
+                            _tileSize);
+                    }
                 }
             }
 
-            // 3. Vykreslenie všetkých hadov v hre
+            // 2. Vykreslenie všetkých jedál
+            foreach (var food in state.ActiveFoods)
+            {
+                using (Brush foodBrush = new SolidBrush(food.Color))
+                {
+                    g.FillRectangle(foodBrush,
+                        food.Position.X * _tileSize + 1, // +1 aby sme neprekryli mriežku
+                        food.Position.Y * _tileSize + 1,
+                        _tileSize - 1,
+                        _tileSize - 1);
+                }
+            }
+
+            // 3. Vykreslenie všetkých hadov
             foreach (var snake in state.Snakes)
             {
-                // Ak je had mŕtvy, vykreslíme ho šedou farbou, inak zelenou
                 Brush snakeBrush = snake.IsAlive ? Brushes.LimeGreen : Brushes.Gray;
 
                 foreach (var part in snake.Body)
                 {
                     g.FillRectangle(snakeBrush,
-                        part.X * TileSize,
-                        part.Y * TileSize,
-                        TileSize - 1,
-                        TileSize - 1);
+                        part.X * _tileSize + 1,
+                        part.Y * _tileSize + 1,
+                        _tileSize - 1,
+                        _tileSize - 1);
                 }
             }
-
-            // Sem môžeš neskôr doplniť DrawUI(g, state); pre skóre
         }
     }
 }

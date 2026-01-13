@@ -60,11 +60,17 @@ namespace SnakeOnline.Snake.Core.Models
             _body.Add(new Position(_body.Last().X, _body.Last().Y));
             _score += 10;
         }
-        public void ChangeDirection(Direction newDirection)
+        public bool ChangeDirection(Direction newDirection)
         {
-            if (IsOpposite(CurrentDirection, newDirection)) return;
+            // 1. Ak je nový smer opačný k aktuálnemu, ignorujeme ho (vrátime false)
+            if (IsOpposite(CurrentDirection, newDirection)) return false;
 
+            // 2. Ak už had týmto smerom ide, nie je to "zmena", tak vrátime false
+            if (CurrentDirection == newDirection) return false;
+
+            // 3. Ak je všetko v poriadku, zmeníme smer a vrátime true
             SetDirection(newDirection);
+            return true;
         }
 
         private bool IsOpposite(Direction d1, Direction d2)

@@ -18,7 +18,8 @@ namespace SnakeOnline.Snake.Core.Logic
         private const float NormalSpeed = 150f;
         private const float BoostSpeed = 80f;
         private int _currentInterval = 150; // Základná rýchlosť
-
+        private int activeFoods = 5;
+        private bool _hasChangedDirectionThisTick = false;
 
         public event Action<int> OnSpeedChanged;
         // Definujeme udalosť, ktorú bude MainForm počúvať
@@ -66,21 +67,26 @@ namespace SnakeOnline.Snake.Core.Logic
             // 3. Pohyb a interakcia (jedenie)
             // Túto logiku máš pravdepodobne v MoveSnakes(), tak ju zavoláme
             MoveSnakes();
-
+            _hasChangedDirectionThisTick = false;
             // 4. Doplnenie jedla (ak nejaké zmizlo po zjedení v MoveSnakes)
-            _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, 3);
+            _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, activeFoods);
         }
 
         public void HandleInput(Keys key)
         {
-            var inputHandler = new InputHandler();
-            Direction? newDir = inputHandler.GetDirection(key);
+            if (_hasChangedDirectionThisTick) return;
 
-            if (newDir.HasValue)
+            // Predpokladáme, že GetDirection vráti smer, alebo nejakú neutrálnu hodnotu
+            var inputHandler = new InputHandler();
+            Direction newDir = (Direction)inputHandler.GetDirection(key);
+
+            // Ak tvoj InputHandler vráti Direction.None (alebo inú neplatnú hodnotu) pre neznáme klávesy
+            if (newDir != Direction.None)
             {
-                // Tu povieme prvému hadovi (hráčovi), aby zmenil smer
-                // Musíš mať v triede Snake metódu ChangeDirection
-                CurrentState.Snakes[0].ChangeDirection(newDir.Value);
+                if (CurrentState.Snakes[0].ChangeDirection(newDir))
+                {
+                    _hasChangedDirectionThisTick = true;
+                }
             }
         }
 
@@ -114,14 +120,13 @@ namespace SnakeOnline.Snake.Core.Logic
 
                     // Zvýšime skóre v GameState
                     CurrentState.Score += 10;
+                    _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, activeFoods);
                 }
 
                 // 3. Po pohybe skontrolujeme, či had nenarazil do steny alebo seba
                 CheckCollisions(snake);
             }
 
-            // 4. Až keď sa pohnú všetci hadi, manažér doplní jedlo na plochu do počtu 3
-            _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, 3);
         }
 
         private void HandleSpeedEffect(Models.Snake snake, int speed)
@@ -145,7 +150,6 @@ namespace SnakeOnline.Snake.Core.Logic
             // Hľadáme v zozname ActiveFoods, či je nejaké jedlo na súradniciach hlavy
             return CurrentState.ActiveFoods.FirstOrDefault(f => f.Position.X == head.X && f.Position.Y == head.Y);
         }
-
 
         private void CheckCollisions(SnakeClass snake)
         {

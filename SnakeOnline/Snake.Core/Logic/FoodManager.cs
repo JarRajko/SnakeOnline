@@ -30,25 +30,58 @@ namespace SnakeOnline.Snake.Core.Logic
 
         private Food CreateRandomFood(List<SnakeOnline.Snake.Core.Models.Snake> snakes)
         {
+            // 1. Manažér nájde voľné miesto (jeho zodpovednosť)
+            Position pos = GetRandomAvailablePosition(snakes);
+
+            // 2. Vytvoríme inštancie a priradíme im pozíciu cez inicializátor { Position = pos }
+            var foodTypes = new List<Food>
+    {
+        new Apple { Position = pos },
+        new Plum { Position = pos },
+        new Pear { Position = pos }
+    };
+
+            // 3. Výber podľa šancí (Weighted Random)
+            int totalWeight = foodTypes.Sum(f => f.SpawnChance);
+            int roll = _rand.Next(0, totalWeight);
+
+            int currentWeight = 0;
+            foreach (var food in foodTypes)
+            {
+                currentWeight += food.SpawnChance;
+                if (roll < currentWeight)
+                {
+                    return food;
+                }
+            }
+
+            return new Apple { Position = pos };
+        }
+
+        private Position GetRandomAvailablePosition(List<Models.Snake> snakes)
+        {
             Position pos;
-            bool collision;
+            bool isInvalid;
 
             do
             {
-                collision = false;
+                isInvalid = false;
+                // Vygenerujeme náhodné súradnice v rámci mriežky
                 pos = new Position(_rand.Next(0, _gridWidth), _rand.Next(0, _gridHeight));
 
-                // Kontrola, aby sa jedlo neobjavilo na tele hada
-                if (snakes.Any(s => s.Body.Any(p => p.X == pos.X && p.Y == pos.Y)))
-                    collision = true;
+                // Skontrolujeme, či na tejto pozícii nestojí nejaký had
+                foreach (var snake in snakes)
+                {
+                    if (snake.Body.Any(part => part.X == pos.X && part.Y == pos.Y))
+                    {
+                        isInvalid = true;
+                        break;
+                    }
+                }
 
-            } while (collision);
+            } while (isInvalid); // Opakujeme, kým nenájdeme prázdne miesto
 
-            // Logika náhodného výberu typu jedla TODO
-            if (_rand.Next(0, 100) < 20)
-                return new Plum { Position = pos };
-
-            return new Apple { Position = pos };
+            return pos;
         }
     }
 

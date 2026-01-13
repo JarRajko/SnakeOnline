@@ -16,7 +16,11 @@ public class Plum : Food
 
     public override void ApplyEffect(Snake snake, GameEngine engine)
     {
-        throw new NotImplementedException();
+        // OCHRANA: Ak náhodou engine alebo snake neexistuje, metóda skončí a hra nespadne
+        if (snake == null || engine == null) return;
+
+        snake.Grow();
+        engine.ApplySpeedBuff(5.0f, 80f); // Buff na 5 sekúnd
     }
 
 
