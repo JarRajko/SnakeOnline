@@ -9,18 +9,16 @@ namespace SnakeOnline.Snake.Core.Models;
 public class Plum : Food
 {
 
-
+    public Plum(Position pos) : base(pos)
+    {
+    }
     public override Color Color => Color.Blue;
 
     public override int SpawnChance => 50;
 
-    public override void ApplyEffect(Snake snake, GameEngine engine)
+   public override void ApplyEffect(Snake snake, GameState state)
     {
-        // OCHRANA: Ak náhodou engine alebo snake neexistuje, metóda skončí a hra nespadne
-        if (snake == null || engine == null) return;
-
-        snake.Grow();
-        engine.ApplySpeedBuff(5.0f, 80f); // Buff na 5 sekúnd
+        state.CurrentSpeed = 80;
     }
 
 

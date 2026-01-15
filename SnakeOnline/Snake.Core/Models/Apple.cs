@@ -10,10 +10,15 @@ namespace SnakeOnline.Snake.Core.Models
 {
     public class Apple : Food
     {
+
+        public Apple(Position pos) : base(pos)
+        {
+
+        }
         public override Color Color => Color.Red;
 
         public override int SpawnChance => 80;
-        public override void ApplyEffect(Snake snake, GameEngine engine)
+        public override void ApplyEffect(Snake snake, GameState state)
         {
             snake.Grow();
         }

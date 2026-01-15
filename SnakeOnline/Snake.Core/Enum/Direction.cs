@@ -8,6 +8,6 @@ namespace SnakeOnline.Snake.Core.Enum
 {
     public enum Direction
     {
-        None,UP, DOWN, LEFT, RIGHT
+        NONE,UP, DOWN, LEFT, RIGHT
     }
 }

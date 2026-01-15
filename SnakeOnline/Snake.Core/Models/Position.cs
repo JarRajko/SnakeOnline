@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace SnakeOnline.Snake.Core.Models
 {
+    [Serializable]
     public class Position
     {
         public int X { get; set; }

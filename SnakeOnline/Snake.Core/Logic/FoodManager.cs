@@ -30,18 +30,14 @@ namespace SnakeOnline.Snake.Core.Logic
 
         private Food CreateRandomFood(List<SnakeOnline.Snake.Core.Models.Snake> snakes)
         {
-            // 1. Manažér nájde voľné miesto (jeho zodpovednosť)
             Position pos = GetRandomAvailablePosition(snakes);
-
-            // 2. Vytvoríme inštancie a priradíme im pozíciu cez inicializátor { Position = pos }
             var foodTypes = new List<Food>
     {
-        new Apple { Position = pos },
-        new Plum { Position = pos },
-        new Pear { Position = pos }
+        new Apple(pos),
+        new Plum(pos),
+        new Pear(pos)
     };
 
-            // 3. Výber podľa šancí (Weighted Random)
             int totalWeight = foodTypes.Sum(f => f.SpawnChance);
             int roll = _rand.Next(0, totalWeight);
 
@@ -54,8 +50,7 @@ namespace SnakeOnline.Snake.Core.Logic
                     return food;
                 }
             }
-
-            return new Apple { Position = pos };
+            return new Apple(pos);
         }
 
         private Position GetRandomAvailablePosition(List<Models.Snake> snakes)
@@ -66,10 +61,8 @@ namespace SnakeOnline.Snake.Core.Logic
             do
             {
                 isInvalid = false;
-                // Vygenerujeme náhodné súradnice v rámci mriežky
                 pos = new Position(_rand.Next(0, _gridWidth), _rand.Next(0, _gridHeight));
 
-                // Skontrolujeme, či na tejto pozícii nestojí nejaký had
                 foreach (var snake in snakes)
                 {
                     if (snake.Body.Any(part => part.X == pos.X && part.Y == pos.Y))
@@ -79,8 +72,7 @@ namespace SnakeOnline.Snake.Core.Logic
                     }
                 }
 
-            } while (isInvalid); // Opakujeme, kým nenájdeme prázdne miesto
-
+            } while (isInvalid);
             return pos;
         }
     }

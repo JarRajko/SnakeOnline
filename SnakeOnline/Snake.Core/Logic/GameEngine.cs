@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SnakeOnline.Input;
+using SnakeOnline.Snake.Core.Network;
 
 namespace SnakeOnline.Snake.Core.Logic
 {
@@ -14,61 +15,91 @@ namespace SnakeOnline.Snake.Core.Logic
     public class GameEngine
     {
         private readonly FoodManager _foodManager;
-        private float _speedBuffTimer = 0; // Zostávajúci čas buffu v sekundách
-        private const float NormalSpeed = 150f;
         private const float BoostSpeed = 80f;
-        private int _currentInterval = 150; // Základná rýchlosť
-        private int activeFoods = 5;
+        private int _currentInterval = 150; private int activeFoods = 5;
         private bool _hasChangedDirectionThisTick = false;
+        private readonly InputHandler _inputHandler = new InputHandler();
 
         public event Action<int> OnSpeedChanged;
-        // Definujeme udalosť, ktorú bude MainForm počúvať
         public event Action<int> OnTimerIntervalChanged;
         public GameState CurrentState { get; private set; }
-        public GameEngine() 
+        public GameEngine(bool isHost)
         {
             CurrentState = new GameState();
+            CurrentState.CurrentSpeed = _currentInterval;
+
             var playerSnake = new Models.Snake(new Position(5, 5), Direction.RIGHT);
+
             CurrentState.Snakes.Add(playerSnake);
+
             _foodManager = new FoodManager(CurrentState.GridWidth, CurrentState.GridHeight);
 
-            // Na začiatku vygenerujeme napr. 3 jedlá
-            _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, 3);
+            _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, activeFoods);
         }
 
-        // Samotná metóda, ktorú volajú jedlá alebo Update
+        public GameStatePacket CreatePacketFromState()
+        {
+            GameStatePacket packet = new GameStatePacket();
+            packet.AllSnakesPositions = new List<List<Position>>();
+            foreach (var snake in CurrentState.Snakes)
+            {
+                List<Position> snakeBody = new List<Position>();
+                foreach (var segment in snake.Body)
+                {
+                    snakeBody.Add(segment);
+                }
+                packet.AllSnakesPositions.Add(snakeBody);
+            }
+
+            packet.FoodPositions = new List<Position>();
+            foreach (var food in CurrentState.ActiveFoods)
+            {
+                packet.FoodPositions.Add(food.Position);
+            }
+
+            packet.Score = CurrentState.Snakes[0].Score;
+            packet.IsGameOver = CurrentState.IsGameOver;
+
+            return packet;
+        }
+
+        public void UpdateLocalStateFromServer(GameStatePacket packet)
+        {
+            CurrentState.IsGameOver = packet.IsGameOver;
+
+            for (int i = 0; i < packet.AllSnakesPositions.Count; i++)
+            {
+                if (i >= CurrentState.Snakes.Count)
+                {
+                    var newSnake = new SnakeOnline.Snake.Core.Models.Snake(
+                        packet.AllSnakesPositions[i][0],
+                        SnakeOnline.Snake.Core.Enum.Direction.NONE);
+                    CurrentState.Snakes.Add(newSnake);
+                }
+
+                CurrentState.Snakes[i].SyncBody(packet.AllSnakesPositions[i]);
+            }
+
+            CurrentState.ActiveFoods.Clear();
+            foreach (var pos in packet.FoodPositions)
+            {
+                var food = new SnakeOnline.Snake.Core.Models.Apple(pos);
+                CurrentState.ActiveFoods.Add(food);
+            }
+        }
+
         public void ChangeTimerInterval(int newInterval)
         {
-            _currentInterval = newInterval; // Uložíme si novú rýchlosť
-            OnTimerIntervalChanged?.Invoke(newInterval);
+            _currentInterval = newInterval; OnTimerIntervalChanged?.Invoke(newInterval);
         }
 
         public void Update()
         {
-            // 1. Ak je hra na konci, nič ďalšie nerobíme
             if (CurrentState.IsGameOver) return;
 
-            // 2. Spracovanie aktívneho buffu (odpočítavanie času)
-            if (_speedBuffTimer > 0)
-            {
-                // Odpočítame reálny čas, ktorý prešiel. 
-                // Keďže metóda Update sa volá v každom tiku timeru, 
-                // odpočítame dĺžku tohto intervalu (v milisekundách prepočítaných na sekundy).
-                _speedBuffTimer -= (float)_currentInterval / 1000f;
 
-                // Ak čas vypršal, vrátime rýchlosť do normálu
-                if (_speedBuffTimer <= 0)
-                {
-                    _speedBuffTimer = 0;
-                    ChangeTimerInterval(150); // Návrat na základných 150ms
-                }
-            }
-
-            // 3. Pohyb a interakcia (jedenie)
-            // Túto logiku máš pravdepodobne v MoveSnakes(), tak ju zavoláme
             MoveSnakes();
             _hasChangedDirectionThisTick = false;
-            // 4. Doplnenie jedla (ak nejaké zmizlo po zjedení v MoveSnakes)
             _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, activeFoods);
         }
 
@@ -76,12 +107,9 @@ namespace SnakeOnline.Snake.Core.Logic
         {
             if (_hasChangedDirectionThisTick) return;
 
-            // Predpokladáme, že GetDirection vráti smer, alebo nejakú neutrálnu hodnotu
-            var inputHandler = new InputHandler();
-            Direction newDir = (Direction)inputHandler.GetDirection(key);
+            Direction newDir = _inputHandler.GetDirection(key);
 
-            // Ak tvoj InputHandler vráti Direction.None (alebo inú neplatnú hodnotu) pre neznáme klávesy
-            if (newDir != Direction.None)
+            if (newDir != Direction.NONE)
             {
                 if (CurrentState.Snakes[0].ChangeDirection(newDir))
                 {
@@ -90,91 +118,89 @@ namespace SnakeOnline.Snake.Core.Logic
             }
         }
 
-        public void ApplySpeedBuff(float durationInSeconds, float newInterval)
-        {
-            _speedBuffTimer = durationInSeconds;
-            ChangeTimerInterval((int)newInterval);
-        }
 
         private void MoveSnakes()
         {
             foreach (var snake in CurrentState.Snakes)
             {
-                // 1. Pohneme len hadmi, ktorí ešte žijú
                 if (!snake.IsAlive) continue;
 
                 snake.Move();
 
-                // 2. Skontrolujeme, či hlava hada narazila na nejaké jedlo
-                // Používame LINQ FirstOrDefault na prehľadanie zoznamu ActiveFoods
                 var eatenFood = CurrentState.ActiveFoods.FirstOrDefault(f =>
                     f.Position.X == snake.Body[0].X && f.Position.Y == snake.Body[0].Y);
 
                 if (eatenFood != null)
                 {
-                    // Jedlo samo vykoná svoj efekt (rast, zmena rýchlosti...)
-                    eatenFood.ApplyEffect(snake, this);
-
-                    // Odstránime ho, aby ho nemohol zjesť niekto iný
+                    eatenFood.ApplyEffect(snake, CurrentState);
                     CurrentState.ActiveFoods.Remove(eatenFood);
-
-                    // Zvýšime skóre v GameState
                     CurrentState.Score += 10;
+
+                    ChangeTimerInterval(CurrentState.CurrentSpeed);
+
                     _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, activeFoods);
                 }
 
-                // 3. Po pohybe skontrolujeme, či had nenarazil do steny alebo seba
                 CheckCollisions(snake);
             }
 
         }
 
-        private void HandleSpeedEffect(Models.Snake snake, int speed)
-        {
-            // Základná rýchlosť je napr. 150ms
-            // Ak chceme zrýchliť, zmenšíme interval (napr. na 100ms)
-            // Ak chceme spomaliť, zväčšíme ho (napr. na 200ms)
-
-            int newInterval = 150;
-
-            if (CurrentState.Score % 50 == 0) // Každých 50 bodov zrýchlime
-            {
-                newInterval = Math.Max(50, 150 - (CurrentState.Score / 10 * 5));
-                OnSpeedChanged?.Invoke(newInterval);
-            }
-        }
-
         private Food HasEatenFood(Models.Snake snake)
         {
             var head = snake.Body[0];
-            // Hľadáme v zozname ActiveFoods, či je nejaké jedlo na súradniciach hlavy
             return CurrentState.ActiveFoods.FirstOrDefault(f => f.Position.X == head.X && f.Position.Y == head.Y);
         }
 
-        private void CheckCollisions(SnakeClass snake)
+        private void CheckCollisions(SnakeClass currentSnake)
         {
-            Position head = snake.Body[0];
+            Position head = currentSnake.Body[0];
 
             if (head.X < 0 || head.X >= CurrentState.GridWidth ||
                 head.Y < 0 || head.Y >= CurrentState.GridHeight)
             {
-                snake.IsAlive = false;
+                currentSnake.IsAlive = false;
                 CurrentState.IsGameOver = true;
                 return;
             }
 
-            for (int i = 1; i < snake.Body.Count; i++)
+            foreach (var otherSnake in CurrentState.Snakes)
             {
-                if (head.X == snake.Body[i].X && head.Y == snake.Body[i].Y)
+                for (int i = 0; i < otherSnake.Body.Count; i++)
                 {
-                    snake.IsAlive = false;
-                    CurrentState.IsGameOver = true;
-                    return;
+                    if (currentSnake == otherSnake && i == 0) continue;
+
+                    if (head.X == otherSnake.Body[i].X && head.Y == otherSnake.Body[i].Y)
+                    {
+                        if (i == 0)
+                        {
+                            currentSnake.IsAlive = false;
+                            otherSnake.IsAlive = false;
+                            CurrentState.IsGameOver = true;
+                        }
+                        else
+                        {
+                            otherSnake.CutAt(i);
+                        }
+                        return;
+                    }
                 }
             }
         }
 
-       
+        private bool IsOutOfBounds(Position head)
+        {
+            return head.X < 0 || head.X >= CurrentState.GridWidth ||
+                   head.Y < 0 || head.Y >= CurrentState.GridHeight;
+        }
+
+        private void EndGame(SnakeClass snake)
+        {
+            snake.IsAlive = false;
+            CurrentState.IsGameOver = true;
+        }
+
+
 
     }
 }

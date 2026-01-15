@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SnakeOnline.Snake.Core.Models
 {
-    public  class Snake
+    public class Snake
     {
         private readonly List<Position> _body = new List<Position>();
         private int _score = 0;
@@ -15,10 +15,10 @@ namespace SnakeOnline.Snake.Core.Models
 
         public Direction CurrentDirection { get; private set; }
         public bool IsAlive { get; set; } = true;
+        public int Score { get; internal set; }
 
         public Snake(Position startPosition, Direction startDirection)
         {
-            _body.Add(startPosition);
             CurrentDirection = startDirection;
             _body.Add(startPosition);
             _body.Add(new Position(startPosition.X, startPosition.Y + 1));
@@ -27,11 +27,7 @@ namespace SnakeOnline.Snake.Core.Models
 
         public void SetDirection(Direction newDirection)
         {
-            if (CurrentDirection == Direction.UP && newDirection == Direction.DOWN) return;
-            if (CurrentDirection == Direction.DOWN && newDirection == Direction.UP) return;
-            if (CurrentDirection == Direction.LEFT && newDirection == Direction.RIGHT) return;
-            if (CurrentDirection == Direction.RIGHT && newDirection == Direction.LEFT) return;
-
+            if (IsOpposite(CurrentDirection, newDirection)) return;
             CurrentDirection = newDirection;
         }
 
@@ -52,7 +48,7 @@ namespace SnakeOnline.Snake.Core.Models
 
             _body.Insert(0, newHead);
 
-            if (_body.Count > 1 ) _body.RemoveAt(_body.Count - 1);
+            if (_body.Count > 1) _body.RemoveAt(_body.Count - 1);
         }
 
         public void Grow()
@@ -60,17 +56,38 @@ namespace SnakeOnline.Snake.Core.Models
             _body.Add(new Position(_body.Last().X, _body.Last().Y));
             _score += 10;
         }
+
         public bool ChangeDirection(Direction newDirection)
         {
-            // 1. Ak je nový smer opačný k aktuálnemu, ignorujeme ho (vrátime false)
             if (IsOpposite(CurrentDirection, newDirection)) return false;
-
-            // 2. Ak už had týmto smerom ide, nie je to "zmena", tak vrátime false
             if (CurrentDirection == newDirection) return false;
 
-            // 3. Ak je všetko v poriadku, zmeníme smer a vrátime true
             SetDirection(newDirection);
             return true;
+        }
+
+        public bool IsCollidingWithSelf()
+        {
+            Position head = _body[0];
+
+            for (int i = 1; i < _body.Count; i++)
+            {
+                if (head.X == _body[i].X && head.Y == _body[i].Y)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void CutAt(int index)
+        {
+            if (index > 0 && index < _body.Count)
+            {
+                int countToRemove = _body.Count - index;
+                _body.RemoveRange(index, countToRemove);
+            }
         }
 
         private bool IsOpposite(Direction d1, Direction d2)
@@ -80,8 +97,15 @@ namespace SnakeOnline.Snake.Core.Models
             if (d1 == Direction.LEFT && d2 == Direction.RIGHT) return true;
             if (d1 == Direction.RIGHT && d2 == Direction.LEFT) return true;
             return false;
-
         }
 
+        public void SyncBody(List<Position> newBody)
+        {
+            _body.Clear();
+            foreach (var segment in newBody)
+            {
+                _body.Add(segment);
+            }
+        }
     }
 }
