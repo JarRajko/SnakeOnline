@@ -19,6 +19,7 @@ public class Plum : Food
    public override void ApplyEffect(Snake snake, GameState state)
     {
         state.CurrentSpeed = 80;
+        snake.Grow();
     }
 
 

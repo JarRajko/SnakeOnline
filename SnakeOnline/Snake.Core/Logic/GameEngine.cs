@@ -1,39 +1,37 @@
-﻿using SnakeOnline.Snake.Core.Enum;
+﻿using SnakeOnline.Input;
+using SnakeOnline.Snake.Core.Enum;
 using SnakeOnline.Snake.Core.Models;
-using SnakeClass = SnakeOnline.Snake.Core.Models.Snake;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using SnakeOnline.Input;
 using SnakeOnline.Snake.Core.Network;
 
 namespace SnakeOnline.Snake.Core.Logic
 {
-
     public class GameEngine
     {
         private readonly FoodManager _foodManager;
         private const float BoostSpeed = 80f;
-        private int _currentInterval = 150; private int activeFoods = 5;
+        private int _currentInterval = 1000;//150;
+        private int activeFoods = 5;
         private bool _hasChangedDirectionThisTick = false;
         private readonly InputHandler _inputHandler = new InputHandler();
 
-        public event Action<int> OnSpeedChanged;
         public event Action<int> OnTimerIntervalChanged;
         public GameState CurrentState { get; private set; }
-        public GameEngine(bool isHost)
+
+        public GameEngine(bool isMultiplayer)
         {
             CurrentState = new GameState();
             CurrentState.CurrentSpeed = _currentInterval;
 
-            var playerSnake = new Models.Snake(new Position(5, 5), Direction.RIGHT);
+            var player1 = new Models.Snake(new Position(5, 5), Direction.RIGHT,Color.Green);
+            CurrentState.Snakes.Add(player1);
 
-            CurrentState.Snakes.Add(playerSnake);
+            if (isMultiplayer)
+            {
+                var player2 = new Models.Snake(new Position(15, 15), Direction.UP, Color.Red);
+                CurrentState.Snakes.Add(player2);
+            }
 
             _foodManager = new FoodManager(CurrentState.GridWidth, CurrentState.GridHeight);
-
             _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, activeFoods);
         }
 
@@ -41,6 +39,7 @@ namespace SnakeOnline.Snake.Core.Logic
         {
             GameStatePacket packet = new GameStatePacket();
             packet.AllSnakesPositions = new List<List<Position>>();
+
             foreach (var snake in CurrentState.Snakes)
             {
                 List<Position> snakeBody = new List<Position>();
@@ -57,7 +56,11 @@ namespace SnakeOnline.Snake.Core.Logic
                 packet.FoodPositions.Add(food.Position);
             }
 
-            packet.Score = CurrentState.Snakes[0].Score;
+            if (CurrentState.Snakes.Count > 0)
+            {
+                packet.Score = CurrentState.Snakes[0].Score;
+            }
+
             packet.IsGameOver = CurrentState.IsGameOver;
 
             return packet;
@@ -73,7 +76,7 @@ namespace SnakeOnline.Snake.Core.Logic
                 {
                     var newSnake = new SnakeOnline.Snake.Core.Models.Snake(
                         packet.AllSnakesPositions[i][0],
-                        SnakeOnline.Snake.Core.Enum.Direction.NONE);
+                        SnakeOnline.Snake.Core.Enum.Direction.NONE, Color.Gold);
                     CurrentState.Snakes.Add(newSnake);
                 }
 
@@ -90,13 +93,13 @@ namespace SnakeOnline.Snake.Core.Logic
 
         public void ChangeTimerInterval(int newInterval)
         {
-            _currentInterval = newInterval; OnTimerIntervalChanged?.Invoke(newInterval);
+            _currentInterval = newInterval;
+            OnTimerIntervalChanged?.Invoke(newInterval);
         }
 
         public void Update()
         {
             if (CurrentState.IsGameOver) return;
-
 
             MoveSnakes();
             _hasChangedDirectionThisTick = false;
@@ -111,13 +114,15 @@ namespace SnakeOnline.Snake.Core.Logic
 
             if (newDir != Direction.NONE)
             {
-                if (CurrentState.Snakes[0].ChangeDirection(newDir))
+                if (CurrentState.Snakes.Count > 0)
                 {
-                    _hasChangedDirectionThisTick = true;
+                    if (CurrentState.Snakes[0].ChangeDirection(newDir))
+                    {
+                        _hasChangedDirectionThisTick = true;
+                    }
                 }
             }
         }
-
 
         private void MoveSnakes()
         {
@@ -127,37 +132,39 @@ namespace SnakeOnline.Snake.Core.Logic
 
                 snake.Move();
 
-                var eatenFood = CurrentState.ActiveFoods.FirstOrDefault(f =>
-                    f.Position.X == snake.Body[0].X && f.Position.Y == snake.Body[0].Y);
+                Food eatenFood = null;
+                foreach (var food in CurrentState.ActiveFoods)
+                {
+                    if (food.Position.X == snake.Body[0].X && food.Position.Y == snake.Body[0].Y)
+                    {
+                        eatenFood = food;
+                        break;
+                    }
+                }
 
                 if (eatenFood != null)
                 {
                     eatenFood.ApplyEffect(snake, CurrentState);
                     CurrentState.ActiveFoods.Remove(eatenFood);
-                    CurrentState.Score += 10;
+
+                    if (snake == CurrentState.Snakes[0])
+                    {
+                        CurrentState.Score += 10;
+                    }
 
                     ChangeTimerInterval(CurrentState.CurrentSpeed);
-
                     _foodManager.DistributeFood(CurrentState.ActiveFoods, CurrentState.Snakes, activeFoods);
                 }
 
                 CheckCollisions(snake);
             }
-
         }
 
-        private Food HasEatenFood(Models.Snake snake)
-        {
-            var head = snake.Body[0];
-            return CurrentState.ActiveFoods.FirstOrDefault(f => f.Position.X == head.X && f.Position.Y == head.Y);
-        }
-
-        private void CheckCollisions(SnakeClass currentSnake)
+        private void CheckCollisions(SnakeOnline.Snake.Core.Models.Snake currentSnake)
         {
             Position head = currentSnake.Body[0];
 
-            if (head.X < 0 || head.X >= CurrentState.GridWidth ||
-                head.Y < 0 || head.Y >= CurrentState.GridHeight)
+            if (IsOutOfBounds(head))
             {
                 currentSnake.IsAlive = false;
                 CurrentState.IsGameOver = true;
@@ -193,14 +200,5 @@ namespace SnakeOnline.Snake.Core.Logic
             return head.X < 0 || head.X >= CurrentState.GridWidth ||
                    head.Y < 0 || head.Y >= CurrentState.GridHeight;
         }
-
-        private void EndGame(SnakeClass snake)
-        {
-            snake.IsAlive = false;
-            CurrentState.IsGameOver = true;
-        }
-
-
-
     }
 }

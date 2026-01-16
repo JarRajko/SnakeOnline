@@ -1,10 +1,8 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using SnakeOnline.Snake.Core.Network;
-using SnakeOnline.Snake.Core.Enum;
 
 namespace SnakeOnline.Snake.Server
 {
@@ -17,12 +15,19 @@ namespace SnakeOnline.Snake.Server
         public SnakeServer()
         {
             _udpListener = new UdpClient(Port);
-            _remoteEndPoint = new IPEndPoint(IPAddress.Any, Port);
+            _remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+        }
+
+        public void Start()
+        {
         }
 
         public void SendWorldState(GameStatePacket packet)
         {
-            if (_remoteEndPoint == null) return;
+            if (_remoteEndPoint == null || _remoteEndPoint.Address.Equals(IPAddress.Any))
+            {
+                return;
+            }
 
             string json = JsonSerializer.Serialize(packet);
             byte[] data = Encoding.UTF8.GetBytes(json);
@@ -31,9 +36,19 @@ namespace SnakeOnline.Snake.Server
 
         public InputPacket ReceiveInput()
         {
-            if (_udpListener.Available <= 0) return null;
+            if (_udpListener.Available <= 0)
+            {
+                return null;
+            }
 
-            byte[] data = _udpListener.Receive(ref _remoteEndPoint);
+            IPEndPoint senderEndPoint = new IPEndPoint(IPAddress.Any, 0);
+            byte[] data = _udpListener.Receive(ref senderEndPoint);
+
+            if (_remoteEndPoint.Address.Equals(IPAddress.Any))
+            {
+                _remoteEndPoint = senderEndPoint;
+            }
+
             string json = Encoding.UTF8.GetString(data);
             return JsonSerializer.Deserialize<InputPacket>(json);
         }

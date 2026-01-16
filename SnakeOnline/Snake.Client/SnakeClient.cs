@@ -27,6 +27,13 @@ namespace SnakeOnline.Snake.Client
             _udpClient.Send(data, data.Length, _serverEndPoint);
         }
 
+        public void Connect()
+        {
+            InputPacket helloPacket = new InputPacket();
+            helloPacket.ChosenDirection = Core.Enum.Direction.NONE;
+            SendInput(helloPacket);
+        }
+
         public GameStatePacket ReceiveWorldState()
         {
             if (_udpClient.Available <= 0) return null;

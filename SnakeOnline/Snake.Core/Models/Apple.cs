@@ -20,6 +20,7 @@ namespace SnakeOnline.Snake.Core.Models
         public override int SpawnChance => 80;
         public override void ApplyEffect(Snake snake, GameState state)
         {
+            state.CurrentSpeed = 150;
             snake.Grow();
         }
     }

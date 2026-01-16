@@ -1,6 +1,7 @@
 ﻿using SnakeOnline.Snake.Core.Enum;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,8 +18,11 @@ namespace SnakeOnline.Snake.Core.Models
         public bool IsAlive { get; set; } = true;
         public int Score { get; internal set; }
 
-        public Snake(Position startPosition, Direction startDirection)
+        public Color SnakeColor { get; set; }
+
+        public Snake(Position startPosition, Direction startDirection, Color color)
         {
+            SnakeColor = color;
             CurrentDirection = startDirection;
             _body.Add(startPosition);
             _body.Add(new Position(startPosition.X, startPosition.Y + 1));
